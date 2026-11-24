@@ -1,0 +1,63 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    # The runner only provides header packages; the binary itself targets glibc 2.31 via Zig.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: System packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake curl xz-utils binutils
+
+      - name: Cache downloaded sources
+        uses: actions/cache@v4
+        with:
+          path: build/dl
+          key: sources-${{ hashFiles('build.sh') }}
+
+      - name: Build
+        run: ./build.sh
+
+      - name: Smoke test
+        run: |
+          ./dist/tapo-desktop --version
+          ./dist/tapo-desktop --help
+          # must not need anything newer than glibc 2.31
+          max=$(objdump -T dist/tapo-desktop | grep -oE 'GLIBC_[0-9.]+' | sort -uV | tail -1)
+          echo "highest glibc symbol: $max"
+          printf '%s\n%s\n' "$max" GLIBC_2.31 | sort -CV
+          # only core system libraries may be linked
+          objdump -p dist/tapo-desktop | grep NEEDED
+          ! objdump -p dist/tapo-desktop | grep NEEDED | grep -vE 'lib(c|m|pthread|dl|rt)\.so'
+
+      - name: Package
+        run: |
+          cp dist/tapo-desktop tapo-desktop-x86_64-linux
+          chmod +x tapo-desktop-x86_64-linux
+          sha256sum tapo-desktop-x86_64-linux > SHA256SUMS
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tapo-desktop-x86_64-linux
+          path: |
+            tapo-desktop-x86_64-linux
+            SHA256SUMS
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes \
+            tapo-desktop-x86_64-linux SHA256SUMS
