@@ -1,5 +1,6 @@
 // Tapo Desktop Client – minimal ONVIF client (SOAP over HTTP, WS-Security digest)
 #include "onvif.h"
+#include "i18n.h"
 
 extern "C" {
 #include <libavutil/base64.h>
@@ -239,11 +240,11 @@ static std::string first_profile_token(const std::string& r) {
 }
 
 static std::string describe_failure(int code, const std::string& r) {
-    if (code == 0) return "camera not reachable";
+    if (code == 0) return tr("camera not reachable");
     if (code == 401 || r.find("NotAuthorized") != std::string::npos ||
         r.find("FailedAuthentication") != std::string::npos)
-        return "login failed – check the camera account (user/password)";
-    return "camera answered with HTTP " + std::to_string(code);
+        return tr("login failed – check the camera account (user/password)");
+    return tr("camera answered with HTTP ") + std::to_string(code);
 }
 
 bool onvif_check_login(const Camera& cam, std::string& msg) {
@@ -256,7 +257,7 @@ bool onvif_check_login(const Camera& cam, std::string& msg) {
         return false;
     }
     bool ptz = r.find("PTZConfiguration") != std::string::npos;
-    msg = std::string("Login OK") + (ptz ? " – pan/tilt supported" : " – no pan/tilt");
+    msg = std::string(tr("Login OK")) + (ptz ? tr(" – pan/tilt supported") : tr(" – no pan/tilt"));
     return true;
 }
 
@@ -495,7 +496,7 @@ void Ptz::open(const Camera& cam) {
         quit_ = false;
         has_cmd_ = false;
         ok_ = false;
-        msg_ = "Pan/tilt: connecting…";
+        msg_ = tr("Pan/tilt: connecting…");
         preset_tokens_.clear();
         preset_names_.clear();
     }
@@ -562,7 +563,7 @@ void Ptz::set_msg(const std::string& m) {
 bool Ptz::call(const std::string& body, std::string& resp, int timeout_ms) {
     int code = soap_post(cam_.host, cam_.onvif_port, body, &cam_.user, &cam_.password, offset_, resp, timeout_ms);
     if (code != 200) {
-        set_msg("Pan/tilt: " + describe_failure(code, resp));
+        set_msg(tr("Pan/tilt: ") + describe_failure(code, resp));
         logf("ONVIF request failed (HTTP %d)", code);
         return false;
     }
@@ -575,12 +576,12 @@ bool Ptz::init() {
     if (!call("<GetProfiles xmlns=\"http://www.onvif.org/ver10/media/wsdl\"/>", r)) return false;
     profile_ = first_profile_token(r);
     if (profile_.empty()) {
-        set_msg("Pan/tilt: no media profile found");
+        set_msg(tr("Pan/tilt: no media profile found"));
         return false;
     }
     inited_ = true;
     if (r.find("PTZConfiguration") == std::string::npos) {
-        set_msg("This camera has no pan/tilt");
+        set_msg(tr("This camera has no pan/tilt"));
         return true;
     }
     std::vector<std::string> tokens, names;
@@ -595,7 +596,7 @@ bool Ptz::init() {
                 std::string name = xml_text(r, "Name", p, &end);
                 if (!tok.empty()) {
                     tokens.push_back(tok);
-                    names.push_back(name.empty() ? "Preset " + tok : name);
+                    names.push_back(name.empty() ? tr("Preset ") + tok : name);
                 }
             }
             p += 7;

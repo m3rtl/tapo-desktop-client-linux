@@ -1,5 +1,6 @@
 // Tapo Desktop Client – main window, UI and input handling
 #include "app.h"
+#include "i18n.h"
 #include "onvif.h"
 #include "player.h"
 
@@ -149,19 +150,19 @@ static void toggle_fullscreen() {
 static void toggle_mute() {
     A.muted = !A.muted;
     A.player->set_muted(A.muted);
-    notify(A.muted ? "Sound off" : "Sound on");
+    notify(A.muted ? tr("Sound off") : tr("Sound on"));
 }
 
 static void snapshot() {
     const Camera* c = cur_cam();
     if (!c || !A.shown) {
-        notify("No picture yet");
+        notify(tr("No picture yet"));
         return;
     }
     std::string path = A.store.set.media_dir + "/" + sanitize_filename(c->name) + "_" + timestamp_now() + ".jpg";
     std::string err;
-    if (save_jpeg(A.shown, path, err)) notify("Snapshot saved: " + path);
-    else notify("Snapshot failed: " + err);
+    if (save_jpeg(A.shown, path, err)) notify(tr("Snapshot saved: ") + path);
+    else notify(tr("Snapshot failed: ") + err);
 }
 
 static void toggle_record() {
@@ -169,7 +170,7 @@ static void toggle_record() {
     if (!c) return;
     bool on = !A.player->recording_wanted();
     A.player->set_recording(on, A.store.set.media_dir, sanitize_filename(c->name));
-    notify(on ? "Recording to " + A.store.set.media_dir : "Recording stopped");
+    notify(on ? tr("Recording to ") + A.store.set.media_dir : trs("Recording stopped"));
 }
 
 static void start_scan() {
@@ -218,7 +219,7 @@ static void begin_edit(int idx, const Discovered* d = nullptr) {
         if (d) {
             A.edit.host = d->host;
             A.edit.onvif_port = d->onvif_port;
-            A.edit.name = d->model.empty() ? "Camera " + d->host : "Tapo " + d->model;
+            A.edit.name = d->model.empty() ? tr("Camera ") + d->host : "Tapo " + d->model;
         }
     }
     {
@@ -253,7 +254,7 @@ static void save_edit() {
         open_camera((int)A.store.cams.size() - 1);
     }
     A.edit_open = false;
-    if (!A.store.save()) notify("Could not save " + A.store.path);
+    if (!A.store.save()) notify(tr("Could not save ") + A.store.path);
 }
 
 // ------------------------------------------------------------------- video
@@ -328,49 +329,49 @@ static void ui_toolbar() {
 
     const Camera* c = cur_cam();
     ImGui::SetNextItemWidth(230);
-    if (ImGui::BeginCombo("##cam", c ? c->name.c_str() : "No camera")) {
+    if (ImGui::BeginCombo("##cam", c ? c->name.c_str() : tr("No camera"))) {
         for (int i = 0; i < (int)A.store.cams.size(); i++) {
             ImGui::PushID(i);
             if (ImGui::Selectable(A.store.cams[i].name.c_str(), i == A.cur) && i != A.cur) open_camera(i);
             ImGui::PopID();
         }
         ImGui::Separator();
-        if (ImGui::Selectable("Manage cameras...")) A.show_cams = true;
+        if (ImGui::Selectable(tr("Manage cameras..."))) A.show_cams = true;
         ImGui::EndCombo();
     }
-    tooltip("Camera (PgUp/PgDn)");
+    tooltip(tr("Camera (PgUp/PgDn)"));
 
     ImGui::SameLine();
     ImGui::BeginDisabled(!c);
     if (ImGui::Button(A.player->quality_sd() ? " SD " : " HD ")) A.player->set_quality(!A.player->quality_sd());
-    tooltip("Stream quality: HD = stream1, SD = stream2 (H)");
+    tooltip(tr("Stream quality: HD = stream1, SD = stream2 (H)"));
     ImGui::SameLine();
-    if (ImGui::Button(A.muted ? "Sound off" : "Sound on")) toggle_mute();
-    tooltip("Mute / unmute (M)");
+    if (ImGui::Button(A.muted ? tr("Sound off") : tr("Sound on"))) toggle_mute();
+    tooltip(tr("Mute / unmute (M)"));
     ImGui::SameLine();
-    if (ImGui::Button("Snapshot")) snapshot();
-    tooltip("Save a JPEG of the current picture (P)");
+    if (ImGui::Button(tr("Snapshot"))) snapshot();
+    tooltip(tr("Save a JPEG of the current picture (P)"));
     ImGui::SameLine();
     bool rec = A.player->recording_wanted();
     if (rec) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.75f, 0.15f, 0.15f, 1));
-    if (ImGui::Button(rec ? "Stop recording" : "Record")) toggle_record();
+    if (ImGui::Button(rec ? tr("Stop recording") : tr("Record"))) toggle_record();
     if (rec) ImGui::PopStyleColor();
-    tooltip("Record to a local MKV file without re-encoding (V)");
+    tooltip(tr("Record to a local MKV file without re-encoding (V)"));
     ImGui::SameLine();
-    ImGui::Checkbox("Pan/Tilt", &A.show_ptz);
-    tooltip("Show the pan/tilt pad – or use the arrow keys / WASD (Shift = fast)");
+    ImGui::Checkbox(tr("Pan/Tilt"), &A.show_ptz);
+    tooltip(tr("Show the pan/tilt pad – or use the arrow keys / WASD (Shift = fast)"));
     ImGui::EndDisabled();
 
     ImGui::SameLine();
-    if (ImGui::Button("Cameras")) A.show_cams = true;
+    if (ImGui::Button(tr("Cameras"))) A.show_cams = true;
     ImGui::SameLine();
-    if (ImGui::Button("Settings")) {
+    if (ImGui::Button(tr("Settings"))) {
         A.set_edit = A.store.set;
         A.show_settings = true;
     }
     ImGui::SameLine();
-    if (ImGui::Button(A.fullscreen ? "Window" : "Fullscreen")) toggle_fullscreen();
-    tooltip("F / F11 / double-click");
+    if (ImGui::Button(A.fullscreen ? tr("Window") : tr("Fullscreen"))) toggle_fullscreen();
+    tooltip(tr("F / F11 / double-click"));
     ImGui::SameLine();
     if (ImGui::Button(" ? ")) A.show_help = true;
 
@@ -384,7 +385,7 @@ static void ui_toolbar() {
 
 static void ui_center_status() {
     std::string msg;
-    if (A.store.cams.empty()) msg = "No camera configured yet.\nClick \"Cameras\" to scan your network.";
+    if (A.store.cams.empty()) msg = tr("No camera configured yet.\nClick \"Cameras\" to scan your network.");
     else if (cur_cam() && !A.player->live()) msg = A.player->status();
     if (msg.empty()) return;
     ImGuiIO& io = ImGui::GetIO();
@@ -409,7 +410,7 @@ static void ui_ptz() {
                      ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav);
     if (!A.ptz.available()) {
         std::string m = A.ptz.message();
-        ImGui::TextDisabled("%s", m.empty() ? "Pan/tilt not available" : m.c_str());
+        ImGui::TextDisabled("%s", m.empty() ? tr("Pan/tilt not available") : m.c_str());
         ImGui::End();
         return;
     }
@@ -426,7 +427,7 @@ static void ui_ptz() {
     hold("##up", ImGuiDir_Up, 0, 1);
     hold("##left", ImGuiDir_Left, -1, 0);
     ImGui::SameLine();
-    if (ImGui::Button("Stop", ImVec2(b, b))) stop_ptz_motion();
+    if (ImGui::Button(tr("Stop"), ImVec2(b, b))) stop_ptz_motion();
     ImGui::SameLine();
     hold("##right", ImGuiDir_Right, 1, 0);
     ImGui::Dummy(ImVec2(b, b));
@@ -480,15 +481,15 @@ static void ui_cameras() {
     ImGui::SetNextWindowSize(ImVec2(640, 480), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_FirstUseEver,
                             ImVec2(0.5f, 0.5f));
-    if (!ImGui::Begin("Cameras", &A.show_cams, ImGuiWindowFlags_NoCollapse)) {
+    if (!ImGui::Begin((trs("Cameras") + "###cams").c_str(), &A.show_cams, ImGuiWindowFlags_NoCollapse)) {
         ImGui::End();
         return;
     }
-    ImGui::SeparatorText("Saved cameras");
-    if (A.store.cams.empty()) ImGui::TextDisabled("None yet – scan your network or add a camera manually.");
+    ImGui::SeparatorText(tr("Saved cameras"));
+    if (A.store.cams.empty()) ImGui::TextDisabled("%s", tr("None yet – scan your network or add a camera manually."));
     else if (ImGui::BeginTable("cams", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerH)) {
-        ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn("Address", ImGuiTableColumnFlags_WidthFixed, 150);
+        ImGui::TableSetupColumn(tr("Name"), ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn(tr("Address"), ImGuiTableColumnFlags_WidthFixed, 150);
         ImGui::TableSetupColumn("##actions", ImGuiTableColumnFlags_WidthFixed, 210);
         for (int i = 0; i < (int)A.store.cams.size(); i++) {
             const Camera& c = A.store.cams[i];
@@ -501,18 +502,18 @@ static void ui_cameras() {
             ImGui::TextUnformatted(c.host.c_str());
             ImGui::TableNextColumn();
             bool removed = false;
-            if (ImGui::SmallButton("Show")) open_camera(i);
+            if (ImGui::SmallButton(tr("Show"))) open_camera(i);
             ImGui::SameLine();
-            if (ImGui::SmallButton("Edit")) begin_edit(i);
+            if (ImGui::SmallButton(tr("Edit"))) begin_edit(i);
             ImGui::SameLine();
             if (A.confirm_remove == i) {
                 ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.7f, 0.15f, 0.15f, 1));
-                if (ImGui::SmallButton("Really remove?")) {
+                if (ImGui::SmallButton(tr("Really remove?"))) {
                     remove_camera(i);
                     removed = true;
                 }
                 ImGui::PopStyleColor();
-            } else if (ImGui::SmallButton("Remove")) {
+            } else if (ImGui::SmallButton(tr("Remove"))) {
                 A.confirm_remove = i;
             }
             ImGui::PopID();
@@ -520,15 +521,15 @@ static void ui_cameras() {
         }
         ImGui::EndTable();
     }
-    if (ImGui::Button("Add camera manually")) begin_edit(-1);
+    if (ImGui::Button(tr("Add camera manually"))) begin_edit(-1);
 
-    ImGui::SeparatorText("Find cameras in your network");
+    ImGui::SeparatorText(tr("Find cameras in your network"));
     ImGui::BeginDisabled(A.scanning);
-    if (ImGui::Button(A.scanning ? "Scanning..." : "Scan network")) start_scan();
+    if (ImGui::Button(A.scanning ? tr("Scanning...") : tr("Scan network"))) start_scan();
     ImGui::EndDisabled();
     if (A.scanning) {
         ImGui::SameLine();
-        ImGui::TextDisabled("ONVIF discovery + port scan, takes a few seconds");
+        ImGui::TextDisabled("%s", tr("ONVIF discovery + port scan, takes a few seconds"));
     }
     std::vector<Discovered> res;
     bool scanned;
@@ -538,11 +539,11 @@ static void ui_cameras() {
         scanned = A.scanned;
     }
     if (scanned && !A.scanning && res.empty())
-        ImGui::TextWrapped("No cameras found. Make sure the camera is in the same network as this computer and that "
-                           "a Camera Account is set up in the Tapo app.");
+        ImGui::TextWrapped("%s", tr("No cameras found. Make sure the camera is in the same network as this computer and that "
+                           "a Camera Account is set up in the Tapo app."));
     if (!res.empty() && ImGui::BeginTable("found", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerH)) {
-        ImGui::TableSetupColumn("Address", ImGuiTableColumnFlags_WidthFixed, 150);
-        ImGui::TableSetupColumn("Model", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn(tr("Address"), ImGuiTableColumnFlags_WidthFixed, 150);
+        ImGui::TableSetupColumn(tr("Model"), ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("##add", ImGuiTableColumnFlags_WidthFixed, 80);
         for (int i = 0; i < (int)res.size(); i++) {
             const Discovered& d = res[i];
@@ -553,18 +554,18 @@ static void ui_cameras() {
             ImGui::TableNextColumn();
             ImGui::TextUnformatted(d.host.c_str());
             ImGui::TableNextColumn();
-            ImGui::TextUnformatted(d.model.empty() ? "ONVIF camera" : d.model.c_str());
+            ImGui::TextUnformatted(d.model.empty() ? tr("ONVIF camera") : d.model.c_str());
             ImGui::TableNextColumn();
-            if (saved) ImGui::TextDisabled("saved");
-            else if (ImGui::SmallButton("Add")) begin_edit(-1, &d);
+            if (saved) ImGui::TextDisabled("%s", tr("saved"));
+            else if (ImGui::SmallButton(tr("Add"))) begin_edit(-1, &d);
             ImGui::PopID();
         }
         ImGui::EndTable();
     }
     ImGui::Spacing();
-    ImGui::TextWrapped("Tapo cameras need a Camera Account for access from other apps: Tapo app > camera > "
+    ImGui::TextWrapped("%s", tr("Tapo cameras need a Camera Account for access from other apps: Tapo app > camera > "
                        "Settings > Advanced Settings > Camera Account. Use those credentials here – not your "
-                       "TP-Link ID.");
+                       "TP-Link ID."));
     ImGui::End();
 }
 
@@ -574,28 +575,28 @@ static void ui_edit() {
     ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Appearing,
                             ImVec2(0.5f, 0.5f));
     ImGui::SetNextWindowFocus();
-    if (!ImGui::Begin(A.edit_idx >= 0 ? "Edit camera###edit" : "Add camera###edit", &A.edit_open,
+    if (!ImGui::Begin((trs(A.edit_idx >= 0 ? "Edit camera" : "Add camera") + "###edit").c_str(), &A.edit_open,
                       ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse)) {
         ImGui::End();
         return;
     }
     ImGui::PushItemWidth(280);
-    ImGui::InputText("Name", &A.edit.name);
-    ImGui::InputText("IP address / host", &A.edit.host);
-    ImGui::InputText("User", &A.edit.user);
-    ImGui::InputText("Password", &A.edit.password, ImGuiInputTextFlags_Password);
-    ImGui::TextDisabled("Camera Account from the Tapo app (Advanced Settings)");
-    if (ImGui::TreeNode("Advanced")) {
-        ImGui::InputInt("RTSP port", &A.edit.rtsp_port, 0);
-        ImGui::InputInt("ONVIF port", &A.edit.onvif_port, 0);
-        ImGui::InputText("HD stream path", &A.edit.stream_hd);
-        ImGui::InputText("SD stream path", &A.edit.stream_sd);
+    ImGui::InputText(tr("Name"), &A.edit.name);
+    ImGui::InputText(tr("IP address / host"), &A.edit.host);
+    ImGui::InputText(tr("User"), &A.edit.user);
+    ImGui::InputText(tr("Password"), &A.edit.password, ImGuiInputTextFlags_Password);
+    ImGui::TextDisabled("%s", tr("Camera Account from the Tapo app (Advanced Settings)"));
+    if (ImGui::TreeNode(tr("Advanced"))) {
+        ImGui::InputInt(tr("RTSP port"), &A.edit.rtsp_port, 0);
+        ImGui::InputInt(tr("ONVIF port"), &A.edit.onvif_port, 0);
+        ImGui::InputText(tr("HD stream path"), &A.edit.stream_hd);
+        ImGui::InputText(tr("SD stream path"), &A.edit.stream_sd);
         ImGui::TreePop();
     }
     ImGui::PopItemWidth();
     ImGui::Spacing();
     ImGui::BeginDisabled(A.testing || A.edit.host.empty());
-    if (ImGui::Button(A.testing ? "Testing..." : "Test login")) start_test();
+    if (ImGui::Button(A.testing ? tr("Testing...") : tr("Test login"))) start_test();
     ImGui::EndDisabled();
     {
         std::lock_guard<std::mutex> lk(A.test_mx);
@@ -606,10 +607,10 @@ static void ui_edit() {
     }
     ImGui::Separator();
     ImGui::BeginDisabled(trim_ws(A.edit.host).empty());
-    if (ImGui::Button("Save")) save_edit();
+    if (ImGui::Button(tr("Save"))) save_edit();
     ImGui::EndDisabled();
     ImGui::SameLine();
-    if (ImGui::Button("Cancel")) A.edit_open = false;
+    if (ImGui::Button(tr("Cancel"))) A.edit_open = false;
     ImGui::End();
 }
 
@@ -618,39 +619,51 @@ static void ui_settings() {
     ImGuiIO& io = ImGui::GetIO();
     ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Appearing,
                             ImVec2(0.5f, 0.5f));
-    if (!ImGui::Begin("Settings", &A.show_settings, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse)) {
+    if (!ImGui::Begin((trs("Settings") + "###settings").c_str(), &A.show_settings, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse)) {
         ImGui::End();
         return;
     }
     Settings& s = A.set_edit;
     ImGui::PushItemWidth(240);
-    ImGui::SeparatorText("Stream");
+    ImGui::SeparatorText(tr("Language"));
+    {
+        const auto& langs = languages();
+        int li = 0;
+        for (int i = 0; i < (int)langs.size(); i++)
+            if (s.language == langs[i].code) li = i;
+        if (ImGui::BeginCombo("##language", langs[li].name)) {
+            for (int i = 0; i < (int)langs.size(); i++)
+                if (ImGui::Selectable(langs[i].name, i == li)) s.language = langs[i].code;
+            ImGui::EndCombo();
+        }
+    }
+    ImGui::SeparatorText(tr("Stream"));
     int q = s.start_sd ? 1 : 0;
-    ImGui::RadioButton("Start in HD", &q, 0);
+    ImGui::RadioButton(tr("Start in HD"), &q, 0);
     ImGui::SameLine();
-    ImGui::RadioButton("Start in SD", &q, 1);
+    ImGui::RadioButton(tr("Start in SD"), &q, 1);
     s.start_sd = q == 1;
-    int tr = s.transport == "udp" ? 1 : 0;
-    ImGui::RadioButton("TCP (robust)", &tr, 0);
+    int tp = s.transport == "udp" ? 1 : 0;
+    ImGui::RadioButton(tr("TCP (robust)"), &tp, 0);
     ImGui::SameLine();
-    ImGui::RadioButton("UDP (lowest latency, needs good Wi-Fi)", &tr, 1);
-    s.transport = tr ? "udp" : "tcp";
-    ImGui::SliderInt("Decoder threads", &s.decoder_threads, 1, 8);
-    tooltip("1 = lowest latency. 2 or more spreads the work on slow CPUs (adds ~1 frame delay).");
-    ImGui::SliderInt("Switch HD/SD after errors", &s.failover_after, 0, 5);
-    tooltip("If a stream fails this many times in a row, switch to the other one (0 = never).");
-    ImGui::SliderFloat("Connect timeout (s)", &s.startup_timeout, 3, 30, "%.0f");
-    ImGui::SliderFloat("Stall timeout (s)", &s.stall_timeout, 2, 30, "%.0f");
-    ImGui::Checkbox("Sound on at start", &s.audio);
-    ImGui::SeparatorText("Pan/Tilt");
-    ImGui::SliderFloat("Speed", &s.ptz_speed, 0.1f, 1.0f, "%.2f");
-    ImGui::Checkbox("Invert directions (ceiling mount)", &s.ptz_invert);
-    ImGui::SeparatorText("Local storage");
-    ImGui::InputText("Snapshots & recordings", &s.media_dir);
+    ImGui::RadioButton(tr("UDP (lowest latency, needs good Wi-Fi)"), &tp, 1);
+    s.transport = tp ? "udp" : "tcp";
+    ImGui::SliderInt(tr("Decoder threads"), &s.decoder_threads, 1, 8);
+    tooltip(tr("1 = lowest latency. 2 or more spreads the work on slow CPUs (adds ~1 frame delay)."));
+    ImGui::SliderInt(tr("Switch HD/SD after errors"), &s.failover_after, 0, 5);
+    tooltip(tr("If a stream fails this many times in a row, switch to the other one (0 = never)."));
+    ImGui::SliderFloat(tr("Connect timeout (s)"), &s.startup_timeout, 3, 30, "%.0f");
+    ImGui::SliderFloat(tr("Stall timeout (s)"), &s.stall_timeout, 2, 30, "%.0f");
+    ImGui::Checkbox(tr("Sound on at start"), &s.audio);
+    ImGui::SeparatorText(tr("Pan/Tilt"));
+    ImGui::SliderFloat(tr("Speed"), &s.ptz_speed, 0.1f, 1.0f, "%.2f");
+    ImGui::Checkbox(tr("Invert directions (ceiling mount)"), &s.ptz_invert);
+    ImGui::SeparatorText(tr("Local storage"));
+    ImGui::InputText(tr("Snapshots & recordings"), &s.media_dir);
     ImGui::PopItemWidth();
-    ImGui::TextDisabled("Config file: %s%s", A.store.path.c_str(), A.store.portable ? " (portable)" : "");
+    ImGui::TextDisabled("%s%s%s", tr("Config file: "), A.store.path.c_str(), A.store.portable ? tr(" (portable)") : "");
     ImGui::Separator();
-    if (ImGui::Button("Save")) {
+    if (ImGui::Button(tr("Save"))) {
         const Settings& o = A.store.set;
         bool reopen = o.transport != s.transport || o.decoder_threads != s.decoder_threads ||
                       o.startup_timeout != s.startup_timeout || o.stall_timeout != s.stall_timeout ||
@@ -658,12 +671,13 @@ static void ui_settings() {
         s.last_camera = o.last_camera;
         if (s.media_dir.empty()) s.media_dir = default_media_dir();
         A.store.set = s;
-        if (!A.store.save()) notify("Could not save " + A.store.path);
+        set_language(s.language);
+        if (!A.store.save()) notify(tr("Could not save ") + A.store.path);
         A.show_settings = false;
         if (reopen && cur_cam()) open_camera(A.cur);
     }
     ImGui::SameLine();
-    if (ImGui::Button("Cancel")) A.show_settings = false;
+    if (ImGui::Button(tr("Cancel"))) A.show_settings = false;
     ImGui::End();
 }
 
@@ -672,7 +686,7 @@ static void ui_help() {
     ImGuiIO& io = ImGui::GetIO();
     ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Appearing,
                             ImVec2(0.5f, 0.5f));
-    if (!ImGui::Begin("Help", &A.show_help, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse)) {
+    if (!ImGui::Begin((trs("Help") + "###help").c_str(), &A.show_help, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse)) {
         ImGui::End();
         return;
     }
@@ -696,14 +710,14 @@ static void ui_help() {
         for (auto& k : keys) {
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
-            ImGui::TextColored(kGreen, "%s", k[0]);
+            ImGui::TextColored(kGreen, "%s", tr(k[0]));
             ImGui::TableNextColumn();
-            ImGui::TextUnformatted(k[1]);
+            ImGui::TextUnformatted(tr(k[1]));
         }
         ImGui::EndTable();
     }
     ImGui::Separator();
-    ImGui::TextDisabled("Not affiliated with TP-Link. Tapo is a trademark of TP-Link.");
+    ImGui::TextDisabled("%s", tr("Not affiliated with TP-Link. Tapo is a trademark of TP-Link."));
     ImGui::End();
 }
 
@@ -804,55 +818,52 @@ static int install_desktop_entry() {
     }
     fprintf(fp,
             "[Desktop Entry]\nType=Application\nName=" APP_NAME
-            "\nComment=Live view and pan/tilt control for Tapo cameras\nExec=\"%s\"\nIcon=camera-web\n"
+            "\nComment=Live view and pan/tilt control for Tapo cameras\nComment[de]=Livebild und Schwenksteuerung für Tapo-Kameras"
+            "\nExec=\"%s\"\nIcon=camera-web\n"
             "Terminal=false\nCategories=AudioVideo;Video;Network;\nStartupWMClass=tapo-desktop\n",
             exe_path().c_str());
     fclose(fp);
-    printf("Menu entry installed: %s\n", f.c_str());
+    printf("%s%s\n", tr("Menu entry installed: "), f.c_str());
     return 0;
 }
 
 static void usage() {
-    printf(APP_NAME " " APP_VERSION " – live view and pan/tilt control for Tapo cameras\n\n"
-           "Usage: tapo-desktop [options]\n"
-           "  --config FILE      use this configuration file\n"
-           "  --portable         keep the configuration next to the executable (tapo-desktop.ini)\n"
-           "  --camera N         start with camera number N (1 = first)\n"
-           "  --fullscreen       start in fullscreen\n"
-           "  --install-desktop  add a menu entry for the current user\n"
-           "  --verbose          print FFmpeg diagnostics\n"
-           "  --version, --help\n\n"
-           "Configuration is stored in ~/.config/tapo-desktop/config.ini (or tapo-desktop.ini\n"
-           "next to the executable in portable mode). Press F1 in the app for keyboard shortcuts.\n");
+    // the text must match the key in i18n.cpp exactly
+    static const char* kUsage =
+        "Usage: tapo-desktop [options]\n"
+        "  --config FILE      use this configuration file\n"
+        "  --portable         keep the configuration next to the executable (tapo-desktop.ini)\n"
+        "  --camera N         start with camera number N (1 = first)\n"
+        "  --fullscreen       start in fullscreen\n"
+        "  --lang de|en       user interface language (default: German)\n"
+        "  --install-desktop  add a menu entry for the current user\n"
+        "  --verbose          print FFmpeg diagnostics\n"
+        "  --version, --help\n\n"
+        "Configuration is stored in ~/.config/tapo-desktop/config.ini (or tapo-desktop.ini\n"
+        "next to the executable in portable mode). Press F1 in the app for keyboard shortcuts.\n";
+    printf("%s %s – %s\n\n%s", APP_NAME, APP_VERSION, tr("live view and pan/tilt control for Tapo cameras"),
+           tr(kUsage));
 }
 
 int main(int argc, char** argv) {
-    std::string cfg_path;
-    bool portable = false, fullscreen = false, verbose = false;
+    std::string cfg_path, lang, unknown;
+    bool portable = false, fullscreen = false, verbose = false, help = false, install = false;
     int start_cam = -1;
     for (int i = 1; i < argc; i++) {
         std::string a = argv[i];
         if (a == "--config" && i + 1 < argc) cfg_path = argv[++i];
         else if (a == "--portable") portable = true;
         else if (a == "--camera" && i + 1 < argc) start_cam = atoi(argv[++i]) - 1;
+        else if (a == "--lang" && i + 1 < argc) lang = argv[++i];
         else if (a == "--fullscreen" || a == "-f") fullscreen = true;
         else if (a == "--verbose" || a == "-v") verbose = true;
-        else if (a == "--install-desktop") return install_desktop_entry();
+        else if (a == "--install-desktop") install = true;
+        else if (a == "--help" || a == "-h") help = true;
         else if (a == "--version") {
             printf(APP_NAME " " APP_VERSION "\n");
             return 0;
-        } else if (a == "--help" || a == "-h") {
-            usage();
-            return 0;
-        } else {
-            fprintf(stderr, "unknown option: %s\n\n", a.c_str());
-            usage();
-            return 2;
-        }
+        } else if (unknown.empty()) unknown = a;
     }
-
-    av_log_set_level(verbose ? AV_LOG_INFO : AV_LOG_ERROR);
-    avformat_network_init();
 
     A.store.locate(cfg_path);
     if (portable && cfg_path.empty()) {
@@ -860,6 +871,24 @@ int main(int argc, char** argv) {
         A.store.portable = true;
     }
     A.store.load();
+    if (!lang.empty()) A.store.set.language = lang;  // --lang overrides the saved setting
+    set_language(A.store.set.language);
+    A.store.set.language = language();
+
+    if (!unknown.empty()) {
+        fprintf(stderr, "%s%s\n\n", tr("unknown option: "), unknown.c_str());
+        usage();
+        return 2;
+    }
+    if (help) {
+        usage();
+        return 0;
+    }
+    if (install) return install_desktop_entry();
+
+    av_log_set_level(verbose ? AV_LOG_INFO : AV_LOG_ERROR);
+    avformat_network_init();
+
     logf("config: %s (%zu cameras)", A.store.path.c_str(), A.store.cams.size());
 
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");

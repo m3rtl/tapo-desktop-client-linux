@@ -102,6 +102,16 @@ if [ "$(cat "$HDR/.done" 2>/dev/null)" != "$HDR_STAMP" ]; then
             if [ -e "$sys/$t" ]; then ln -sf "$sys/$t" "$l"; break; fi
         done
     done
+    missing=""
+    for n in X11 Xext Xcursor Xi Xfixes Xrandr Xrender Xss pulse asound; do
+        [ -e "$LIBDIR/lib$n.so" ] || missing="$missing lib$n"
+    done
+    if [ -n "$missing" ]; then
+        echo "!! runtime libraries missing on this build host:$missing" >&2
+        echo "   (needed only to determine sonames; Debian/Ubuntu: sudo apt-get install libx11-6 libxext6" >&2
+        echo "   libxcursor1 libxi6 libxfixes3 libxrandr2 libxrender1 libxss1 libpulse0 libasound2)" >&2
+        exit 1
+    fi
     echo "$HDR_STAMP" > "$HDR/.done"
 fi
 
@@ -123,8 +133,14 @@ if [ ! -f "$PREFIX/lib/libSDL2.a" ]; then
         -DSDL_LIBSAMPLERATE=OFF -DSDL_DBUS=OFF -DSDL_IBUS=OFF -DSDL_LIBUDEV=OFF -DSDL_HIDAPI=OFF \
         -DSDL_HAPTIC=OFF -DSDL_JOYSTICK=OFF -DSDL_SENSOR=OFF -DSDL_POWER=OFF \
         > "$OBJ/sdl-configure.log"
-    grep -hE "SDL_VIDEO_OPENGL |SDL_VIDEO_DRIVER_X11_DYNAMIC |SDL_AUDIO_DRIVER_PULSEAUDIO_DYNAMIC |SDL_AUDIO_DRIVER_ALSA_DYNAMIC " \
-        "$OBJ/sdl/include/SDL2/SDL_config.h" "$OBJ/sdl/include-config-release/SDL2/SDL_config.h" 2>/dev/null || true
+    SDL_CFG="$(cat "$OBJ"/sdl/include-config-*/SDL2/SDL_config.h "$OBJ"/sdl/include/SDL2/SDL_config.h 2>/dev/null || true)"
+    for def in SDL_VIDEO_DRIVER_X11_DYNAMIC SDL_AUDIO_DRIVER_PULSEAUDIO_DYNAMIC SDL_AUDIO_DRIVER_ALSA_DYNAMIC; do
+        if ! grep -q "define $def " <<<"$SDL_CFG"; then
+            echo "!! SDL configure: $def not set – the binary would not be portable (see $OBJ/sdl-configure.log)" >&2
+            rm -rf "$OBJ/sdl"
+            exit 1
+        fi
+    done
     cmake --build "$OBJ/sdl" -j"$JOBS" >/dev/null
     cmake --install "$OBJ/sdl" >/dev/null
 fi
@@ -161,7 +177,7 @@ IMGUI="$SRC/imgui-$IMGUI_VER"
 cd "$ROOT"
 zc++ -std=c++17 -O2 -DNDEBUG -Wall -Wno-unused-function \
     -I"$PREFIX/include" -I"$PREFIX/include/SDL2" -I"$IMGUI" -I"$IMGUI/backends" -idirafter "$HDR/usr/include" \
-    src/main.cpp src/player.cpp src/onvif.cpp src/config.cpp \
+    src/main.cpp src/player.cpp src/onvif.cpp src/config.cpp src/i18n.cpp \
     "$IMGUI/imgui.cpp" "$IMGUI/imgui_draw.cpp" "$IMGUI/imgui_tables.cpp" "$IMGUI/imgui_widgets.cpp" \
     "$IMGUI/backends/imgui_impl_sdl2.cpp" "$IMGUI/backends/imgui_impl_sdlrenderer2.cpp" \
     "$IMGUI/misc/cpp/imgui_stdlib.cpp" \

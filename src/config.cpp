@@ -181,6 +181,7 @@ bool Store::load() {
             else if (k == "startup_timeout") set.startup_timeout = (float)atof(v.c_str());
             else if (k == "stall_timeout") set.stall_timeout = (float)atof(v.c_str());
             else if (k == "failover_after") set.failover_after = atoi(v.c_str());
+            else if (k == "language") set.language = v;
             else if (k == "media_dir") set.media_dir = (v.rfind("~/", 0) == 0) ? home_dir() + v.substr(1) : v;
         }
     }
@@ -225,6 +226,7 @@ bool Store::save() const {
     fprintf(f, "startup_timeout = %.0f\n", set.startup_timeout);
     fprintf(f, "stall_timeout = %.0f\n", set.stall_timeout);
     fprintf(f, "failover_after = %d\n", set.failover_after);
+    fprintf(f, "language = %s\n", set.language.c_str());
     fprintf(f, "media_dir = %s\n", quote_if_needed(set.media_dir).c_str());
     for (const auto& c : cams) {
         fprintf(f, "\n[camera]\n");

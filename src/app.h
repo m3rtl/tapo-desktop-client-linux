@@ -29,6 +29,7 @@ struct Settings {
     float stall_timeout = 5.0f;   // seconds without data => reconnect
     int failover_after = 2;       // failed attempts before switching HD <-> SD
     std::string media_dir;        // snapshots + recordings
+    std::string language = "de";  // de | en
 };
 
 struct Store {

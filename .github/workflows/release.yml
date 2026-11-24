@@ -19,6 +19,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential cmake curl xz-utils binutils
+          # runtime libraries: only used to determine sonames, nothing is linked against them
+          sudo apt-get install -y libx11-6 libxext6 libxcursor1 libxi6 libxfixes3 libxrandr2 libxrender1 \
+            libxss1 libpulse0 libasound2t64 libgl1 libegl1 libgles2
 
       - name: Cache downloaded sources
         uses: actions/cache@v4

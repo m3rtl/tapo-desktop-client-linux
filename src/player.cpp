@@ -1,5 +1,6 @@
 // Tapo Desktop Client – RTSP player
 #include "player.h"
+#include "i18n.h"
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -50,7 +51,7 @@ void Player::open(const Camera& cam, const Settings& s, bool sd) {
         if (!frame_) frame_ = av_frame_alloc();
         av_frame_unref(frame_);
         frame_new_ = false;
-        status_ = "Connecting…";
+        status_ = tr("Connecting…");
     }
     th_ = std::thread(&Player::run, this);
 }
@@ -158,11 +159,11 @@ void Player::run() {
             sd_ = !sd_;
             fails = 0;
             delay = 0.5;
-            set_status(why + " – switching to " + (sd_ ? "SD" : "HD"));
+            set_status(why + tr(" – switching to ") + (sd_ ? "SD" : "HD"));
         } else {
             delay = std::min(1.5 * fails, 10.0);
             char b[64];
-            snprintf(b, sizeof b, " – retrying in %.0f s", delay);
+            snprintf(b, sizeof b, "%s%.0f s", tr(" – retrying in "), delay);
             set_status(why + b);
         }
         for (int i = 0; i < (int)(delay * 20) && !quit_ && !reconnect_req_; i++) usleep(50000);
@@ -175,7 +176,7 @@ void Player::session(bool& got) {
     const std::string& path = sd ? cam_.stream_sd : cam_.stream_hd;
     std::string url = "rtsp://" + url_userinfo(cam_.user) + ":" + url_userinfo(cam_.password) + "@" + cam_.host +
                       ":" + std::to_string(cam_.rtsp_port) + "/" + path;
-    set_status("Connecting to " + cam_.name + " (" + label + ")…");
+    set_status(tr("Connecting to ") + cam_.name + " (" + label + ") …");
 
     AVFormatContext* fmt = avformat_alloc_context();
     AVCodecContext *vdec = nullptr, *adec = nullptr;
@@ -206,20 +207,20 @@ void Player::session(bool& got) {
     av_dict_free(&o);
     if (r < 0) {
         fmt = nullptr;  // freed by avformat_open_input
-        if (r == AVERROR_HTTP_UNAUTHORIZED || r == AVERROR_HTTP_FORBIDDEN) fail ="login failed – check the camera account";
-        else if (timed_out_) fail = "no answer from camera";
+        if (r == AVERROR_HTTP_UNAUTHORIZED || r == AVERROR_HTTP_FORBIDDEN) fail = tr("login failed – check the camera account");
+        else if (timed_out_) fail = tr("no answer from camera");
         else fail = averr(r);
         goto out;
     }
     if ((r = avformat_find_stream_info(fmt, nullptr)) < 0) {
-        fail = timed_out_ ? "no answer from camera" : averr(r);
+        fail = timed_out_ ? trs("no answer from camera") : averr(r);
         goto out;
     }
     {
         const AVCodec* vc = nullptr;
         vi = av_find_best_stream(fmt, AVMEDIA_TYPE_VIDEO, -1, -1, &vc, 0);
         if (vi < 0 || !vc) {
-            fail = "no supported video stream";
+            fail = tr("no supported video stream");
             goto out;
         }
         vdec = avcodec_alloc_context3(vc);
@@ -233,7 +234,7 @@ void Player::session(bool& got) {
         }
         vdec->flags2 |= AV_CODEC_FLAG2_FAST;
         if ((r = avcodec_open2(vdec, vc, nullptr)) < 0) {
-            fail = "video decoder: " + averr(r);
+            fail = tr("video decoder: ") + averr(r);
             goto out;
         }
 
@@ -277,7 +278,7 @@ void Player::session(bool& got) {
         r = av_read_frame(fmt, pkt);
         if (r < 0) {
             if (quit_ || reconnect_req_) break;
-            fail = timed_out_ ? "stream stalled" : (r == AVERROR_EOF ? "stream ended" : averr(r));
+            fail = timed_out_ ? trs("stream stalled") : (r == AVERROR_EOF ? trs("stream ended") : averr(r));
             break;
         }
         last_io_ = av_gettime_relative();
@@ -344,7 +345,7 @@ void Player::rec_open(AVFormatContext* in, int vi, int ai) {
         prefix = rec_prefix_;
     }
     if (!mkdirs(dir, 0755)) {
-        set_status("Recording: cannot create " + dir);
+        set_status(tr("Recording: cannot create ") + dir);
         rec_want_ = false;
         return;
     }
@@ -383,7 +384,7 @@ void Player::rec_open(AVFormatContext* in, int vi, int ai) {
         logf("recording to %s", file.c_str());
         return;
     }
-    set_status("Recording failed: cannot write " + file);
+    set_status(tr("Recording failed: cannot write ") + file);
     rec_want_ = false;
 }
 
@@ -414,7 +415,7 @@ void Player::rec_write(AVFormatContext* in, AVPacket* pkt, int vi, int ai) {
     int r = av_interleaved_write_frame(rec_, c);
     av_packet_free(&c);
     if (r < 0) {
-        set_status("Recording stopped: " + averr(r));
+        set_status(tr("Recording stopped: ") + averr(r));
         rec_close();
         rec_want_ = false;
     }
@@ -440,7 +441,7 @@ void Player::rec_close() {
 bool save_jpeg(const AVFrame* src, const std::string& path, std::string& err) {
     const AVCodec* codec = avcodec_find_encoder(AV_CODEC_ID_MJPEG);
     if (!codec) {
-        err = "JPEG encoder missing";
+        err = tr("JPEG encoder missing");
         return false;
     }
     AVCodecContext* enc = avcodec_alloc_context3(codec);
@@ -458,13 +459,13 @@ bool save_jpeg(const AVFrame* src, const std::string& path, std::string& err) {
         f->width = src->width;
         f->height = src->height;
         if (av_frame_get_buffer(f, 0) < 0) {
-            err = "out of memory";
+            err = tr("out of memory");
             goto done;
         }
         sws = sws_getContext(src->width, src->height, (AVPixelFormat)src->format, f->width, f->height,
                              AV_PIX_FMT_YUVJ420P, SWS_BILINEAR, nullptr, nullptr, nullptr);
         if (!sws) {
-            err = "unsupported pixel format";
+            err = tr("unsupported pixel format");
             goto done;
         }
         sws_scale(sws, src->data, src->linesize, 0, src->height, f->data, f->linesize);
@@ -482,12 +483,12 @@ bool save_jpeg(const AVFrame* src, const std::string& path, std::string& err) {
     enc->flags |= AV_CODEC_FLAG_QSCALE;
     enc->global_quality = FF_QP2LAMBDA * 2;
     if (avcodec_open2(enc, codec, nullptr) < 0) {
-        err = "cannot open JPEG encoder";
+        err = tr("cannot open JPEG encoder");
         goto done;
     }
     if (avcodec_send_frame(enc, f) < 0 || avcodec_send_frame(enc, nullptr) < 0 ||
         avcodec_receive_packet(enc, pkt) < 0) {
-        err = "JPEG encoding failed";
+        err = tr("JPEG encoding failed");
         goto done;
     }
     {
@@ -495,12 +496,12 @@ bool save_jpeg(const AVFrame* src, const std::string& path, std::string& err) {
         if (sl != std::string::npos) mkdirs(path.substr(0, sl), 0755);
         FILE* fp = fopen(path.c_str(), "wb");
         if (!fp) {
-            err = "cannot write " + path;
+            err = tr("cannot write ") + path;
             goto done;
         }
         ok = fwrite(pkt->data, 1, (size_t)pkt->size, fp) == (size_t)pkt->size;
         ok = (fclose(fp) == 0) && ok;
-        if (!ok) err = "write error";
+        if (!ok) err = tr("write error");
     }
 done:
     sws_freeContext(sws);
